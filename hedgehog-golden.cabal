@@ -65,6 +65,7 @@ library
     , hedgehog ^>= 0.6.1
     , text ^>=1.2.3.1
     , transformers ^>= 0.5.6.2
+    , filepath ^>= 1.4.2.1
 
 test-suite test
   import:

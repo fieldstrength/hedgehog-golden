@@ -3,6 +3,8 @@ module Hedgehog.Golden.Aeson
   , decodeGolden
   , decodeSeed
   , goldenTest
+  , TestConfig(..)
+  , defaultTestConfig
   ) where
 
 import           Prelude
@@ -23,6 +25,7 @@ import           Hedgehog.Golden.Sample (genSamples)
 import           Hedgehog.Golden.Types (GoldenTest(..), TestName(..))
 import           GHC.Stack (HasCallStack, callStack, withFrozenCallStack)
 import           System.Directory (doesFileExist)
+import           System.FilePath ((</>))
 
 encodeGolden :: ToJSON a => Seed -> Seq a -> Text
 encodeGolden seed samples =
@@ -58,19 +61,34 @@ decodeGolden = Aeson.parseEither $ \obj -> do
   samples <- obj .: "samples"
   pure (Seed value gamma, samples)
 
-goldenTest :: forall a. HasCallStack => Typeable a => FromJSON a => ToJSON a => Gen a -> IO GoldenTest
-goldenTest gen = withFrozenCallStack $
+
+data TestConfig = TestConfig
+  { goldenFolderPath :: FilePath }
+
+defaultTestConfig :: TestConfig
+defaultTestConfig = TestConfig
+  { goldenFolderPath = "golden" }
+
+goldenTest ::
+  forall a. HasCallStack
+  => Typeable a
+  => FromJSON a
+  => ToJSON a
+  => TestConfig -> Gen a -> IO GoldenTest
+goldenTest conf gen = withFrozenCallStack $ do
   let
     typeName = show . typeRep $ Proxy @a
     testName = TestName $ Text.pack typeName
-    fileName = "golden/" <> typeName <> ".json"
+    fileName =  goldenFolderPath conf </> typeName <> ".json"
     aesonValueGenerator seed = Text.lines . encodeGolden seed $ genSamples seed gen
     aesonValueReader t =
       either (Left . Text.pack) (const $ Right ()) $
         Aeson.eitherDecodeStrict (Text.encodeUtf8 t) >>= decodeGolden @a
-  in do
-    fileExists <- doesFileExist fileName
-    pure $ if fileExists then
+  fileExists <- doesFileExist fileName
+  pure $
+    if
+      fileExists
+    then
       ExistingFile testName callStack fileName aesonValueGenerator (Just aesonValueReader)
     else
       NewFile testName callStack fileName aesonValueGenerator

@@ -8,6 +8,6 @@ import qualified Hedgehog.Gen as Gen
 
 main :: IO ()
 main = goldenTests_ "Simple Tests"
-  [ Aeson.goldenTest Gen.hexit
-  , Aeson.goldenTest Gen.bool
+  [ Aeson.goldenTest Aeson.defaultTestConfig Gen.hexit
+  , Aeson.goldenTest Aeson.defaultTestConfig Gen.bool
   ]
